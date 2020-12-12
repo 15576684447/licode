@@ -82,7 +82,7 @@ DtlsTransport::DtlsTransport(MediaType med, const std::string &transport_name, c
       dtlsRtp->createServer();
       dtlsRtp->setDtlsReceiver(this);
 
-      if (!rtcp_mux) {
+      if (!rtcp_mux) {//如果rtcp不复用，则需要单独建立dtls连接
         comps = 2;
         dtlsRtcp.reset(new DtlsSocketContext());
         dtlsRtcp->createServer();
@@ -349,12 +349,12 @@ void DtlsTransport::updateIceStateSync(IceState state, IceConnection *conn) {
   } else if (state == IceState::READY) {
     if (!isServer_ && dtlsRtp && !dtlsRtp->started) {
       ELOG_INFO("%s message: DTLSRTP Start, transportName: %s", toLog(), transport_name.c_str());
-      dtlsRtp->start();
+      dtlsRtp->start();//dtls client start
       rtp_timeout_checker_->scheduleCheck();
     }
     if (!isServer_ && dtlsRtcp != NULL && !dtlsRtcp->started) {
       ELOG_DEBUG("%s message: DTLSRTCP Start, transportName: %s", toLog(), transport_name.c_str());
-      dtlsRtcp->start();
+      dtlsRtcp->start();//dtls client start
       rtcp_timeout_checker_->scheduleCheck();
     }
   }

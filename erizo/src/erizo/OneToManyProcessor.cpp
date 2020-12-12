@@ -76,7 +76,7 @@ namespace erizo {
     std::map<std::string, std::shared_ptr<MediaSink>>::iterator it;
     RtpHeader* rhead = reinterpret_cast<RtpHeader*>(video_packet->data);
     uint32_t ssrc = head->isRtcp() ? head->getSSRC() : rhead->getSSRC();
-    uint32_t ssrc_offset = translateAndMaybeAdaptForSimulcast(ssrc);
+    uint32_t ssrc_offset = translateAndMaybeAdaptForSimulcast(ssrc);//TODO:simulcast在原ssrc基础上进行了偏移???
     for (it = subscribers_.begin(); it != subscribers_.end(); ++it) {
       if ((*it).second != nullptr) {
         uint32_t base_ssrc = (*it).second->getVideoSinkSSRC();
@@ -92,7 +92,7 @@ namespace erizo {
     return 0;
   }
 
-  uint32_t OneToManyProcessor::translateAndMaybeAdaptForSimulcast(uint32_t orig_ssrc) {
+  uint32_t OneToManyProcessor::translateAndMaybeAdaptForSimulcast(uint32_t orig_ssrc) {//对于simulcast，pub端接收的ssrc偏移了多少，sub端转发的ssrc就对应的偏移多少
     return orig_ssrc - publisher_->getVideoSourceSSRC();
   }
 
@@ -107,19 +107,20 @@ namespace erizo {
     return publisher_;
   }
 
+  //subs ---> pub
   int OneToManyProcessor::deliverFeedback_(std::shared_ptr<DataPacket> fb_packet) {
     if (auto feedback_sink = feedback_sink_.lock()) {
       RtpUtils::forEachRtcpBlock(fb_packet, [this](RtcpHeader *chead) {
-        if (chead->isREMB()) {
-          for (uint8_t index = 0; index < chead->getREMBNumSSRC(); index++) {
+        if (chead->isREMB()) {//如果是REMB feedback
+          for (uint8_t index = 0; index < chead->getREMBNumSSRC(); index++) {//遍历REMB的ssrc
             if (isSSRCFromAudio(chead->getREMBFeedSSRC(index))) {
-              chead->setREMBFeedSSRC(index, publisher_->getAudioSourceSSRC());
+              chead->setREMBFeedSSRC(index, publisher_->getAudioSourceSSRC());//如果是audio的feedback，就设置为audio source的ssrc
             } else {
-              chead->setREMBFeedSSRC(index, publisher_->getVideoSourceSSRC());
+              chead->setREMBFeedSSRC(index, publisher_->getVideoSourceSSRC());//如果是video的feedback，就设置为video source的ssrc
             }
           }
         }
-        if (isSSRCFromAudio(chead->getSourceSSRC())) {
+        if (isSSRCFromAudio(chead->getSourceSSRC())) {//如果是audio/video feedback
           chead->setSourceSSRC(publisher_->getAudioSourceSSRC());
         } else {
           chead->setSourceSSRC(publisher_->getVideoSourceSSRC());
@@ -195,13 +196,13 @@ namespace erizo {
     boost::unique_lock<boost::mutex> lock(monitor_mutex_);
     std::map<std::string, std::shared_ptr<MediaSink>>::iterator it = subscribers_.begin();
     while (it != subscribers_.end()) {
-      if ((*it).second != nullptr) {
+      if ((*it).second != nullptr) {//先关闭sub对象中feedback source对应的feedback sink
         std::shared_ptr<FeedbackSource> fbsource = (*it).second->getFeedbackSource().lock();
         if (fbsource) {
           fbsource->setFeedbackSink(std::shared_ptr<FeedbackSink>());
         }
       }
-      subscribers_.erase(it++);
+      subscribers_.erase(it++);//再关闭sub对象
     }
     subscribers_.clear();
     p->set_value();

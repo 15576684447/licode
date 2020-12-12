@@ -120,6 +120,14 @@ class FeedbackSource {
 };
 
 /*
+TODO:
+对于MediaSource/MediaSink/FeedbackSource/FeedbackSink的理解
+source是指能够产生数据源的对象，sink是指分发数据的对象
+对于Media数据，pub端为source对象，sub端为sink对象，pub端产生数据分发给subs
+对于Feedback数据，sub端为source对象，pub端为sink对象，sub端搜集feedback后转发到上游pub端
+*/
+
+/*
  * A MediaSink
  */
 class MediaSink: public virtual Monitor {

@@ -69,6 +69,7 @@ void Worker::start() {
 
 void Worker::start(std::shared_ptr<std::promise<void>> start_promise) {
   auto this_ptr = shared_from_this();
+ //worker函数负责运行 io_service
   auto worker = [this_ptr, start_promise] {
     start_promise->set_value();
     if (!this_ptr->closed_) {
@@ -76,6 +77,7 @@ void Worker::start(std::shared_ptr<std::promise<void>> start_promise) {
     }
     return size_t(0);
   };
+  //将worker与thread绑定，开始执行worker
   auto thread = new boost::thread(worker);
   thread_id_ = thread->get_id();
   group_.add_thread(thread);
@@ -92,7 +94,9 @@ std::shared_ptr<ScheduledTaskReference> Worker::scheduleFromNow(Task f, duration
   auto delta_ms = std::chrono::duration_cast<std::chrono::milliseconds>(delta);
   auto id = std::make_shared<ScheduledTaskReference>();
   if (auto scheduler = scheduler_.lock()) {
+    //任务交给调度器，将在等待delta时间后被调度
     scheduler->scheduleFromNow(safeTask([f, id](std::shared_ptr<Worker> this_ptr) {
+      //具体任务执行，还是在该worker的io_service中执行
       this_ptr->task(this_ptr->safeTask([f, id](std::shared_ptr<Worker> this_ptr) {
         {
           if (id->isCancelled()) {
@@ -118,6 +122,7 @@ void Worker::scheduleEvery(ScheduledTask f, duration period, duration next_delay
     if (f()) {
       duration clock_skew = clock->now() - start - next_delay;
       duration delay = period - clock_skew;
+      //执行完后再次被调度，即形成定时调度
       this_ptr->scheduleEvery(f, period, delay);
     }
   }), std::max(next_delay, duration{0}));
@@ -126,7 +131,7 @@ void Worker::scheduleEvery(ScheduledTask f, duration period, duration next_delay
 void Worker::unschedule(std::shared_ptr<ScheduledTaskReference> id) {
   id->cancel();
 }
-
+//统计任务执行耗时
 std::function<void()> Worker::safeTask(std::function<void(std::shared_ptr<Worker>)> f) {
   std::weak_ptr<Worker> weak_this = shared_from_this();
   return [f, weak_this] {

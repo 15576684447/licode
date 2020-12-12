@@ -11,6 +11,7 @@ using erizo::DurationDistribution;
 ThreadPool::ThreadPool(unsigned int num_workers)
     : workers_{}, scheduler_{std::make_shared<Scheduler>(kNumThreadsPerScheduler)} {
   for (unsigned int index = 0; index < num_workers; index++) {
+    //worker初始化需要传入scheduler作为参数
     workers_.push_back(std::make_shared<Worker>(scheduler_));
   }
 }

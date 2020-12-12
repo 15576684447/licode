@@ -62,9 +62,9 @@ class OneToManyProcessor
   uint32_t translateAndMaybeAdaptForSimulcast(uint32_t orig_ssrc);
 
  private:
-  std::weak_ptr<FeedbackSink> feedback_sink_;
-  std::map<std::string, std::shared_ptr<MediaSink>> subscribers_;
-  std::shared_ptr<MediaSource> publisher_;
+  std::weak_ptr<FeedbackSink> feedback_sink_; //feedback sink指的是pub端的feedback，feedback source指的是sub端的feedback，sub端将feedback搜集并转发给上游pub端
+  std::map<std::string, std::shared_ptr<MediaSink>> subscribers_; //media sink指的是subs端
+  std::shared_ptr<MediaSource> publisher_;//pub端
   std::string publisher_id_;
 };
 

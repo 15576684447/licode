@@ -33,17 +33,20 @@ void IOWorker::start(std::shared_ptr<std::promise<void>> start_promise) {
       int events;
       struct timeval towait = {0, 100000};
       struct timeval tv;
+      //等待事件通知或者100ms的定时
       int r = NR_async_event_wait2(&events, &towait);
       if (r == R_EOD) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
       gettimeofday(&tv, 0);
+      //执行定时任务
       NR_async_timer_update_time(&tv);
       std::vector<Task> tasks;
       {
         std::unique_lock<std::mutex> lock(task_mutex_);
         tasks.swap(tasks_);
       }
+      //该IOWorker模型没有调度器，任务会在某个时刻集中执行，导致瞬时CPU过高
       for (Task &task : tasks) {
         task();
       }
